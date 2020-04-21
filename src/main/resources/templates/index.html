@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Home</title>
+    <link th:href="@{/css/bootstrap.min.css}" rel="stylesheet" type="text/css"/>
+    <link th:href="@{/css/grid.css}" rel="stylesheet" type="text/css"/>
+</head>
+
+<script type="text/javascript" th:src="@{/js/jquery-3.1.0.min.js}"></script>
+<script type="text/javascript" th:src="@{/js/jquery-ui.js}"></script>
+
+<body>
+
+<div class="container">
+
+    <div class="page-header">
+        <h1>Prova scritta ICT</h1>
+        <p class="lead">Basic visualization to allow a user to understand the character (type and dimensions) and spatial relations of all the elements.</p>
+    </div>
+
+    <div class="row">
+        <form>
+            <div class="form-group">
+                <label for="type">Type</label>
+                <select class="form-control" id="types" name="testOrder">
+                    <option value="">Select a type</option>
+                    <option th:each="type : ${types}" th:value="${type}" th:text="${type}"></option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="element">Elements</label>
+                <select class="form-control" id="elements" name="testOrder">
+                    <option value="">Select an element</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="dimension">Element dimension</label>
+                <input type="text" class="form-control" readonly id="dimension">
+            </div>
+        </form>
+    </div>
+
+    <hr>
+    <h3>Linked elements</h3>
+    <div class="row">
+        <table id="links_table" class="table">
+            <thead>
+                <th>Element ID</th>
+                <th>Direction</th>
+            </thead>
+            <tbody>
+            <tr><td colspan="2"> No links</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <hr>
+    <div class="content" id="spatial">
+        <h3>Spatial relations</h3>
+        <div class="row">
+            <div class="col-sm-5 col-md-6" id="vertical"></div>
+            <div></div>
+        </div>
+        <div class="row">
+            <div class="col-sm-6 col-md-5 col-lg-6" id="currentId"></div>
+            <div class="col-sm-6 col-md-5 col-md-offset-2 col-lg-6 col-lg-offset-0" id="linear"></div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    $(document).ready(function() {
+
+        $('#spatial').hide();
+
+        $('#types').change(function() {
+            var data = {}
+            data["type"] = $(this).val();
+            $.ajax({
+                type: "POST",
+                contentType: "application/json",
+                url: "elements",
+                data: JSON.stringify(data),
+                cache: false,
+                success: function (data) {
+                    // reset
+                    reset();
+                    // draw
+                    $('#elements').append("<option>Select an element</option>");
+                    $.each(data, function (key, value) {
+                        $('#elements').append($("<option></option>").val(value.id).html(value.id));
+                    });
+                },
+                error: function (e) {
+                    alert(JSON.stringify(e));
+                }
+            });
+        });
+
+        $('#elements').change(function() {
+            $.ajax({
+                type: "GET",
+                contentType: "application/json",
+                url: "element/" + $(this).val(),
+                cache: false,
+                success: function (data) {
+
+                    clearSpatialrelations();
+                    clearLinksTable();
+                    $("#dimension").val("width=" + data.width+ ", height=" + data.height);
+
+                    if ( data.links.length > 0) {
+                        // draw Links
+                        var trHTML = '';
+                        $.each(data.links, function (i, item) {
+                            trHTML += '<tr><td>' + item.element_ID2 + '</td><td>' + item.direction + '</td></tr>';
+                        });
+                        $('#links_table').append(trHTML);
+
+                        // draw spatial
+                        $('#spatial').show();
+                        $("#currentId").prepend("<button class='btn btn-primary'>"+data.id+"</button>");
+
+                        $.each(data.links, function (i, item) {
+                            if ( item.direction == 'lateral') {
+                                $("#linear").prepend("<button class='btn btn-success'>"+ item.element_ID2 +"</button>");
+                            } else {
+                                $("#vertical").prepend("<button class='btn btn-info'>"+ item.element_ID2+"</button>");
+                            }
+                        });
+                    } else {
+                        $("#links_table").append('<tr><td colspan="2"> No links</td></tr>');
+                    }
+                },
+                error: function (e) {
+                    alert(JSON.stringify(e));
+                }
+            });
+        });
+
+        function reset () {
+            clearSpatialrelations();
+            clearLinksTable();
+            $('#elements').empty();
+            $("#dimension").val("")
+        }
+
+        function clearSpatialrelations() {
+            $('#spatial').hide();
+            $('#currentId').empty();
+            $('#linear').empty();
+            $('#vertical').empty();
+        }
+
+        function clearLinksTable(){
+            $("#links_table tbody tr").remove();
+            //$("#links_table").append('<tr><td colspan="2"> No elements</td></tr>');
+        }
+    });
+    </script>
+
+</body>
+</html>
